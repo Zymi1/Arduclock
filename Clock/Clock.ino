@@ -1,41 +1,39 @@
-#include <LiquidCrystal_I2C.h>
+#include <SolarCalculator.h>
+#include <LiquidCrystal.h>
+#include <virtuabotixRTC.h>
+#include <LowPower.h>
 
-int jasnosc = 126;  //max jasnosc
+int czytest = 0; //zmiana na debug z wyswietlania
 
-int ciemnosc = 10;  //min jasnosc
+int ustawienie_sekunda = 20; //zmiana sekund na RTC
+int ustawienie_minuta = 26; //zmiana minut na RTC
+int ustawienie_godzina = 18; //zmiana godziny na RTC
+int ustawienie_dzientygodnia = 3; //zmiana dnia tygodnia na RTC
+int ustawienie_dzienmiesiaca = 17; //zmiana daty na RTC
+int ustawienie_miesiac = 1; //zmiana miesiaca na RTC
+int ustawienie_rok = 2024; //zmiana roku na RTC
 
-int jasnosc_zmniejszenie = (jasnosc - ciemnosc) / (59);
+int poprawa_godziny = 0; //zmiana na 1 gdy trzeba poprawic date na RTC
 
-int czy_godzina_zachodu = 0;
+double latitude = 51.1075; //zmiana szerokosci geograficznej
+double longitude = 17.0625; //zmiana dlugosci geograficznej
+int time_zone = +2; //zmiana strefy czasowej (nie uwzglednia czasu letniego/zimowego)
 
-int czytest = 0;
+float jasnosc = 126;  //max jasnosc wyswietlacza
+float ciemnosc = 10;  //min jasnosc wysweitlacza
+int czy_godzina_zachodu = 0; //wewnetrzna zmienna, czy jest godzina zachodu
 
-int zegarek_czy_muzyka = 0;
+int zegarek_czy_muzyka = 0; //zmiana wyswietlania zegara
+String is_paused = "True"; //wewnetrzna zmienna
+String x = ""; //wewnetrzna zmienna
+String song_name = ""; //wewnetrzna zmienna
+String old_song_name = "a"; //wewnetrzna zmienna
+String incoming_song_name = ""; //wewnetrzna zmienna
+String song_length = ""; //wewnetrzna zmienna
+int ktora_czesc = 0; //wewnetrzna zmienna
 
-int ustawienie_sekunda = 20;
-int ustawienie_minuta = 26;
-int ustawienie_godzina = 18;
-int ustawienie_dzientygodnia = 3;
-int ustawienie_dzienmiesiaca = 17;
-int ustawienie_miesiac = 1;
-int ustawienie_rok = 2024;
-
-int poprawa_godziny = 0;
-
-String is_paused = "True";
-
-int korekta = 0;
-
-int spanko = 0;
-
-int ktora_czesc = 0;
-
-String x = "";
-String song_name = "";
-String old_song_name = "a";
-String incoming_song_name = "";
-String song_length = "";
-
+int korekta = 0; //wewnetrzna zmienna
+int spanko = 0; //wewnetrzna zmienna
 /*
  * The circuit:
  * LCD RS pin to digital pin 12
@@ -104,14 +102,6 @@ byte solaireR[8] = {
   0b11100,
   0b11100,
 };
-
-#include <SolarCalculator.h>
-
-#include <LiquidCrystal.h>
-
-#include <virtuabotixRTC.h>
-
-#include <LowPower.h>
 
 const int rs = 6, en = 12, d4 = 5, d5 = 4, d6 = 3, d7 = 2;
 
@@ -194,12 +184,6 @@ void loop()
   int month = myRTC.month;
   int day = myRTC.dayofmonth;
 
-  // Location
-  double latitude = 51.1079;
-  double longitude = 17.0385;
-  int time_zone = +2;
-  int utc_offset = +2;
-
   double transit, sunrise, sunset;
 
   // Calculate the times of sunrise, transit, and sunset, in hours (UTC)
@@ -215,9 +199,9 @@ void loop()
 
   if (myRTC.hours == hr_ss + time_zone) {
     czy_godzina_zachodu = 1;
-    if (myRTC.minutes == mn_ss) { analogWrite(10, jasnosc - (jasnosc_zmniejszenie * myRTC.seconds)); }
     if (myRTC.minutes < mn_ss) { analogWrite(10, jasnosc); }
     if (myRTC.minutes > mn_ss) { analogWrite(10, ciemnosc); }
+    if (myRTC.minutes == mn_ss) { analogWrite(10, (jasnosc + (ciemnosc - jasnosc) * myRTC.seconds / 59)); }
   } else {
     czy_godzina_zachodu = 0;
   }
@@ -228,7 +212,7 @@ void loop()
 
   switch (myRTC.dayofweek) {
     case 1:
-      dzientygodnia += "Poniedzialek";
+      dzientygodnia += "Poniedzialek ";
       break;
 
     case 2:
@@ -314,6 +298,10 @@ void loop()
       lcd.setCursor(0, 1);
 
       if (myRTC.hours == 21 && myRTC.minutes == 37) {
+        if(myRTC.hours == 21 && myRTC.minutes == 37 && myRTC.seconds <= 2)
+        {
+          lcd.clear();
+        }
         lcd.print("PAPAJOWA");
       }
 
@@ -349,6 +337,7 @@ void loop()
             lcd.write(" ");
             lcd.print(czy_godzina_zachodu);
             lcd.write(" ");
+            lcd.print(jasnosc + (ciemnosc - jasnosc) * myRTC.seconds / 59);
             break;
         }
       }
@@ -418,7 +407,7 @@ void loop()
       czy_godzina_zachodu = 1;
     }
 
-  if (myRTC.hours == 0 && myRTC.minutes == 0 && myRTC.seconds >= 8 && korekta == 1) 
+  if (myRTC.hours == 0 && myRTC.minutes == 0 && myRTC.seconds >= 6 && korekta == 1) 
     {
       lcd.clear();
       myRTC.DS1302_write(0x80, 0);
