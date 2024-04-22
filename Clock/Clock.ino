@@ -5,19 +5,25 @@
 
 int czytest = 0; //zmiana na debug z wyswietlania
 
-int ustawienie_sekunda = 20; //zmiana sekund na RTC
-int ustawienie_minuta = 26; //zmiana minut na RTC
-int ustawienie_godzina = 18; //zmiana godziny na RTC
-int ustawienie_dzientygodnia = 3; //zmiana dnia tygodnia na RTC
-int ustawienie_dzienmiesiaca = 17; //zmiana daty na RTC
-int ustawienie_miesiac = 1; //zmiana miesiaca na RTC
+int ustawienie_sekunda = 35; //zmiana sekund na RTC
+int ustawienie_minuta = 21; //zmiana minut na RTC
+int ustawienie_godzina = 14; //zmiana godziny na RTC
+int ustawienie_dzientygodnia = 1; //zmiana dnia tygodnia na RTC
+int ustawienie_dzienmiesiaca = 1; //zmiana daty na RTC
+int ustawienie_miesiac = 4; //zmiana miesiaca na RTC
 int ustawienie_rok = 2024; //zmiana roku na RTC
 
 int poprawa_godziny = 0; //zmiana na 1 gdy trzeba poprawic date na RTC
 
+const int NUM_SLIDERS = 5;
+const int analogInputs[NUM_SLIDERS] = {A0, A1, A2, A3, A4};
+int analogSliderValues[NUM_SLIDERS];
+
+int czy_letni = 1; //zmiana z czasu letniego na zimowy
+
 double latitude = 51.1075; //zmiana szerokosci geograficznej
 double longitude = 17.0625; //zmiana dlugosci geograficznej
-int time_zone = +2; //zmiana strefy czasowej (nie uwzglednia czasu letniego/zimowego)
+int time_zone = (2+czy_letni); //zmiana strefy czasowej (nie uwzglednia czasu letniego/zimowego)
 
 float jasnosc = 126;  //max jasnosc wyswietlacza
 float ciemnosc = 10;  //min jasnosc wysweitlacza
@@ -109,28 +115,6 @@ LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 
 virtuabotixRTC myRTC(7, 8, 9);
 
-void setup() {
-  
-  myRTC.updateTime();
-
-  lcd.begin(16, 2);
-
-  Serial.begin(9600);
-
-  pinMode(10, OUTPUT);
-  pinMode(11, INPUT);
-  pinMode(6, OUTPUT);
-  pinMode(A5, INPUT);
-  pinMode(A4, INPUT);
-
-  if (poprawa_godziny == 1) { myRTC.setDS1302Time(ustawienie_sekunda, ustawienie_minuta, ustawienie_godzina, ustawienie_dzientygodnia, ustawienie_dzienmiesiaca, ustawienie_miesiac, ustawienie_rok); }
-
-  lcd.createChar(0, solaireL);
-  lcd.createChar(1, solaireF);
-  lcd.createChar(2, solaireR);
-  lcd.createChar(3, pause_symbol);
-}
-
 String getValue(String data, char separator, int index)
 {
   int found = 0;
@@ -149,6 +133,64 @@ String getValue(String data, char separator, int index)
 }
 
 void (*resetFunc)(void) = 0;
+
+void updateSliderValues() {
+  for (int i = 0; i < NUM_SLIDERS; i++) {
+     analogSliderValues[i] = analogRead(analogInputs[i]);
+  }
+}
+
+void sendSliderValues() {
+  String builtString = String("");
+
+  for (int i = 0; i < NUM_SLIDERS; i++) {
+    builtString += String((int)analogSliderValues[i]);
+
+    if (i < NUM_SLIDERS - 1) {
+      builtString += String("|");
+    }
+  }
+  
+  Serial.println(builtString);
+}
+
+void printSliderValues() {
+  for (int i = 0; i < NUM_SLIDERS; i++) {
+    String printedString = String("Slider #") + String(i + 1) + String(": ") + String(analogSliderValues[i]) + String(" mV");
+    Serial.write(printedString.c_str());
+
+    if (i < NUM_SLIDERS - 1) {
+      Serial.write(" | ");
+    } else {
+      Serial.write("\n");
+    }
+  }
+}
+
+
+void setup() {
+  
+  for (int i = 0; i < NUM_SLIDERS; i++) {
+    pinMode(analogInputs[i], INPUT);
+  }
+
+  myRTC.updateTime();
+
+  lcd.begin(16, 2);
+
+  Serial.begin(115200);
+
+  pinMode(10, OUTPUT);
+  pinMode(11, INPUT);
+  pinMode(6, OUTPUT);
+
+  if (poprawa_godziny == 1) { myRTC.setDS1302Time(ustawienie_sekunda, ustawienie_minuta, ustawienie_godzina, ustawienie_dzientygodnia, ustawienie_dzienmiesiaca, ustawienie_miesiac, ustawienie_rok); }
+
+  lcd.createChar(0, solaireL);
+  lcd.createChar(1, solaireF);
+  lcd.createChar(2, solaireR);
+  lcd.createChar(3, pause_symbol);
+}
 
 void loop() 
 {
@@ -341,6 +383,8 @@ void loop()
             break;
         }
       }
+       updateSliderValues();
+       sendSliderValues();
     break;
 
     case 1:
@@ -407,7 +451,7 @@ void loop()
       czy_godzina_zachodu = 1;
     }
 
-  if (myRTC.hours == 0 && myRTC.minutes == 0 && myRTC.seconds >= 6 && korekta == 1) 
+  if (myRTC.hours == 0 && myRTC.minutes == 0 && myRTC.seconds >= 8 && korekta == 1) 
     {
       lcd.clear();
       myRTC.DS1302_write(0x80, 0);
